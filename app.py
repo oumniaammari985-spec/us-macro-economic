@@ -11,7 +11,7 @@ st.write("Welcome! This app will display automatic macroeconomic data.")
 st.header("GDP")
 
 # Example: Fetching GDP data from FRED API
-FRED_API_KEY = "ضع المفتاح هنا"
+FRED_API_KEY = "f034076778e256cc6652d0e249b13f67"
 fred_url = f"https://api.stlouisfed.org/fred/series/observations?series_id=GDP&api_key={FRED_API_KEY}&file_type=json"
 
 try:
