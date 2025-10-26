@@ -75,3 +75,56 @@ st.success("🔥 Growth + Inflation (Stagflation)")
 
 st.subheader("🏦 Monetary Policy Suggestion")
 st.info("💹 Tightening → Possible Interest Rate Hike")
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+
+st.set_page_config(page_title="U.S Macro Economic Dashboard", layout="wide")
+st.title("🇺🇸 U.S Macro Economic Dashboard")
+st.write("Automatic updates — Official economic indicators")
+
+# -------------------
+# جدول الأرباع الاقتصادية
+# -------------------
+quarter_data = {
+    "Quarter": ["Q1 2025", "Q2 2025", "Q3 2025", "Q4 2025"],
+    "Status": ["Growth", "Growth + Inflation", "Stagflation", "Recession?"],
+    "Trend": ["↑", "↑", "↔", "↓"]
+}
+df_quarter = pd.DataFrame(quarter_data)
+
+def color_quarter(val):
+    if val == "↑":
+        return "background-color: green; color: white"
+    elif val == "↓":
+        return "background-color: red; color: white"
+    elif val == "↔":
+        return "background-color: orange; color: white"
+    return ""
+
+st.subheader("📅 Economic Quarters Overview")
+st.dataframe(df_quarter.style.applymap(color_quarter, subset=["Trend"]))
+
+# -------------------
+# جدول السياسة النقدية
+# -------------------
+policy_data = {
+    "Policy Aspect": ["Current Rate", "Monetary Policy", "Expected Action"],
+    "Value": ["5.25%", "Tightening", "Possible Interest Rate Hike"]
+}
+df_policy = pd.DataFrame(policy_data)
+
+def color_policy(val):
+    if "Tightening" in val:
+        return "background-color: red; color: white"
+    elif "Easing" in val:
+        return "background-color: green; color: white"
+    return ""
+
+st.subheader("🏦 Monetary Policy Overview")
+st.dataframe(df_policy.style.applymap(color_policy, subset=["Value"]))
+
+# -------------------
+# آخر تحديث
+# -------------------
+st.markdown(f"🗓️ **Last Updated:** {datetime.now().strftime('%B %d, %Y %H:%M:%S')}")
