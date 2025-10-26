@@ -3,129 +3,100 @@ import pandas as pd
 from fredapi import Fred
 from datetime import datetime
 import yfinance as yf
-import matplotlib.pyplot as plt
 
-# ==========================
-# إعداد FRED API
-# ==========================
+# ===== CONFIG =====
 FRED_API_KEY = "7f5eae04be2947e58f155c52922d7145"
 fred = Fred(api_key=FRED_API_KEY)
 
-# ==========================
-# قائمة المؤشرات الاقتصادية
-# ==========================
+# ===== INDICATORS =====
 indicators = {
-    "CPI": "CPIAUCNS",
+    "CPI": "CPIAUCSL",
     "Core CPI (MoM)": "CPILFESL",
     "PPI": "PPIACO",
-    "Core PPI (MoM)": "PPIFESL",
+    "Core PPI (MoM)": "PPICTOT",
     "Unemployment Rate": "UNRATE",
-    "Non-Farm Payrolls (NFP)": "PAYEMS",
+    "Non-Farm Payrolls": "PAYEMS",
     "Average Hourly Earnings": "CES0500000003",
     "Retail Sales (MoM)": "RSAFS",
     "Core Retail Sales (MoM)": "RSXFS",
     "ISM Manufacturing PMI": "NAPM",
     "ISM Services PMI": "NAPM_SERV",
-    "ISM Manufacturing Prices": "PPIACO",
+    "ISM Manufacturing Prices": "NAPM_PRICES",
     "JOLTS Job Openings": "JTSJOL",
     "Michigan Consumer Sentiment": "UMCSENT",
-    "PCE (Personal Consumption Expenditures)": "PCE",
+    "PCE": "PCE",
     "Core PCE (MoM)": "PCEPILFE",
-    "GDP (QoQ)": "A191RL1Q225SBEA",
+    "GDP (QoQ)": "GDP",
     "Durable Goods Orders": "DGORDER",
     "Trade Balance": "NETEXP",
     "Building Permits": "PERMIT",
-    "New Home Sales": "NHSPST",
+    "New Home Sales": "NHSLTOT",
     "Industrial Production": "INDPRO",
     "Participation Rate": "CIVPART",
-    "ADP Employment": "ADP7400",
-    "Earnings Productivity": "PRS85006023"
 }
 
-# ==========================
-# جلب البيانات الاقتصادية
-# ==========================
+# ===== STREAMLIT SETUP =====
+st.set_page_config(page_title="🇺🇸 U.S Macro Economic Dashboard", layout="wide")
+st.title("🇺🇸 U.S Macro Economic Dashboard")
+st.markdown("Automatic updates — Official economic indicators")
+
+# ===== FETCH DATA =====
 data = []
-for name, series in indicators.items():
+for name, code in indicators.items():
     try:
-        latest = fred.get_series_latest_release(series)
-        data.append({"Indicator": name, "Latest Value": latest})
+        series = fred.get_series(code)
+        latest = series.dropna().iloc[-1]
+        prev = series.dropna().iloc[-2] if len(series.dropna())>1 else latest
+        trend = "📈 UP" if latest > prev else "📉 DOWN" if latest < prev else "➡️ Stable"
+        data.append({"Indicator": name, "Latest Value": latest, "Trend": trend})
     except:
-        data.append({"Indicator": name, "Latest Value": "N/A"})
+        data.append({"Indicator": name, "Latest Value": "N/A", "Trend": "❌ Error"})
 
 df = pd.DataFrame(data)
 
-# ==========================
-# جلب أسعار الأسواق المالية
-# ==========================
-assets = {
+# ===== DISPLAY TABLE =====
+st.subheader("📊 Macro Economic Indicators")
+st.dataframe(df.style.background_gradient(subset=["Latest Value"], cmap="coolwarm"))
+
+# ===== CURRENT QUARTER =====
+st.subheader("📅 Current Economic Quarter")
+gdp = df.loc[df["Indicator"]=="GDP (QoQ)", "Latest Value"].values[0]
+if isinstance(gdp, (int, float)):
+    if gdp > 1000:
+        quarter_status = "🔥 نمو مع التضخم"
+        monetary_policy = "💹 تشديد → احتمال رفع أسعار الفائدة"
+    else:
+        quarter_status = "⚡ نمو ضعيف"
+        monetary_policy = "⚖️ سياسة معتدلة"
+else:
+    quarter_status = "❌ بيانات غير متوفرة"
+    monetary_policy = "❌ بيانات غير متوفرة"
+
+st.markdown(f"Status: {quarter_status}")
+st.markdown(f"Policy: {monetary_policy}")
+
+# ===== MARKETS ANALYSIS =====
+st.subheader("💹 Financial Markets Analysis")
+symbols = {
     "Gold": "GC=F",
-    "BTC/USD": "BTC-USD",
+    "BTCUSD": "BTC-USD",
     "US Tech 100": "^NDX",
     "US Dollar Index": "DX-Y.NYB",
     "US30": "^DJI"
 }
-
-asset_data = {}
-for name, ticker in assets.items():
+market_data = []
+for name, sym in symbols.items():
     try:
-        price = yf.download(ticker, period="1d")["Close"][-1]
-        asset_data[name] = price
+        ticker = yf.Ticker(sym)
+        price = ticker.history(period="2d")['Close'].iloc[-1]
+        prev_price = ticker.history(period="2d")['Close'].iloc[-2]
+        trend = "📈 UP" if price > prev_price else "📉 DOWN" if price < prev_price else "➡️ Stable"
+        market_data.append({"Market": name, "Price": price, "Trend": trend})
     except:
-        asset_data[name] = "N/A"
+        market_data.append({"Market": name, "Price": "N/A", "Trend": "❌ Error"})
+market_df = pd.DataFrame(market_data)
+st.dataframe(market_df.style.background_gradient(subset=["Price"], cmap="viridis"))
 
-# ==========================
-# واجهة Streamlit
-# ==========================
-st.title("🇺🇸 U.S Macro Economic Dashboard")
-st.write("Automatic updates — Official economic indicators")
-
-st.subheader("📊 Macro Economic Indicators")
-st.dataframe(df.style.background_gradient(subset=["Latest Value"], cmap="coolwarm"))
-
-st.subheader("💹 Financial Market Snapshot")
-for asset, price in asset_data.items():
-    st.write(f"{asset}: {price}")
-
-# ==========================
-# تحليل الربع الاقتصادي
-# ==========================
-gdp_value = df.loc[df["Indicator"]=="GDP (QoQ)", "Latest Value"].values[0]
-cpi_value = df.loc[df["Indicator"]=="CPI", "Latest Value"].values[0]
-
-if gdp_value != "N/A" and cpi_value != "N/A":
-    if gdp_value > 2 and cpi_value < 2:
-        quarter_status = "🟢 نمو اقتصادي"
-    elif gdp_value > 2 and cpi_value >= 2:
-        quarter_status = "🔥 نمو مع التضخم"
-    elif gdp_value <= 0 and cpi_value >= 2:
-        quarter_status = "🔴 انكماش اقتصادي مع تضخم"
-    else:
-        quarter_status = "🟡 انكماش اقتصادي"
-else:
-    quarter_status = "❓ بيانات غير كافية"
-
-# ==========================
-# السياسة النقدية
-# ==========================
-if cpi_value != "N/A":
-    if cpi_value > 2:
-        monetary_policy = "💹 تشديد → احتمال رفع أسعار الفائدة"
-    else:
-        monetary_policy = "⚪ تيسير → أسعار الفائدة مستقرة أو منخفضة"
-else:
-    monetary_policy = "❓ بيانات غير كافية"
-
-st.subheader("📅 Current Economic Quarter")
-st.write("Status:", quarter_status)
-
-st.subheader("🏦 Monetary Policy Suggestion")
-st.write("Policy:", monetary_policy)
-
-st.write("🗓️ Last Updated:", datetime.now().strftime("%B %d, %Y %H:%M:%S"))
-
-# ==========================
-# تحديث يدوي
-# ==========================
-if st.button("🔄 تحديث يدوي"):
-    st.experimental_rerun()
+# ===== LAST UPDATED =====
+st.subheader("🗓️ Last Updated")
+st.markdown(datetime.now().strftime("%B %d, %Y %H:%M:%S"))
