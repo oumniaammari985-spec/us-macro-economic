@@ -1,33 +1,34 @@
 import streamlit as st
 import pandas as pd
-import requests
+from fredapi import Fred
+import datetime
 
-st.title("U.S Macro Economic Dashboard")
-st.write("Welcome! This app will display automatic macroeconomic data.")
+# ✅ API Key
+fred = Fred(api_key="f034076778e256cc6652d0e249b13f67")
 
-# -----------------------------
-# GDP Data
-# -----------------------------
-st.header("GDP")
+st.title("🇺🇸 U.S. Macro Economic Dashboard")
+st.write("📊 البيانات يتم جلبها تلقائياً من FRED (المصدر الرسمي للاقتصاد الأمريكي)")
 
-# Example: Fetching GDP data from FRED API
-FRED_API_KEY = "f034076778e256cc6652d0e249b13f67"
-fred_url = f"https://api.stlouisfed.org/fred/series/observations?series_id=GDP&api_key={FRED_API_KEY}&file_type=json"
+# ✅ دالة لجلب البيانات
+def get_data(series_id, title):
+    data = fred.get_series(series_id)
+    df = pd.DataFrame(data, columns=[title])
+    df.index.name = "Date"
+    return df
 
-try:
-    response = requests.get(fred_url)
-    data = response.json()
-    df = pd.DataFrame(data['observations'])
-    df['date'] = pd.to_datetime(df['date'])
-    df['value'] = pd.to_numeric(df['value'], errors='coerce')
-    st.line_chart(df.set_index('date')['value'])
-except Exception as e:
-    st.error(f"Failed to fetch GDP data: {e}")
+# ✅ المؤشرات
+gdp = get_data("GDP", "GDP (Billions USD)")
+cpi = get_data("CPIAUCSL", "CPI")
+unemployment = get_data("UNRATE", "Unemployment Rate")
 
-# -----------------------------
-# Example Additional Data
-# -----------------------------
-st.header("Other Economic Data")
-st.write("This section can display more macroeconomic indicators automatically.")
+# ✅ عرض البيانات والرسوم
+st.header("📌 GDP")
+st.line_chart(gdp)
 
-# You can add more sections here, e.g., Unemployment Rate, Inflation, etc.
+st.header("📌 CPI - Inflation")
+st.line_chart(cpi)
+
+st.header("📌 Unemployment Rate")
+st.line_chart(unemployment)
+
+st.success("✅ تم جلب البيانات بنجاح! 🚀")
