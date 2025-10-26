@@ -3,10 +3,8 @@ import pandas as pd
 import requests
 import plotly.express as px
 
-# ✅ API Key
 FRED_API_KEY = "f034076778e256cc6652d0e249b13f67"
 
-# ✅ Function to get CPI data from FRED
 def get_fred_data(series_id, title):
     url = f"https://api.stlouisfed.org/fred/series/observations"
     params = {
@@ -19,32 +17,31 @@ def get_fred_data(series_id, title):
     df = pd.DataFrame(data)
     df["value"] = pd.to_numeric(df["value"], errors="coerce")
     df["date"] = pd.to_datetime(df["date"])
-    df = df.dropna()
-    
-    return df
+    df = df.dropna().reset_index(drop=True)
+    return df.rename(columns={"value": title})
 
-# ✅ Page Title
 st.title("🇺🇸 U.S Macro Economic Dashboard")
 st.write("Automatic updates — Official economic indicators")
 
-st.subheader("📊 CPI (Inflation Indicator)")
-
-# ✅ Get CPI (Consumer Price Index)
+# CPI
 cpi_df = get_fred_data("CPIAUCSL", "CPI")
+st.subheader("📊 CPI (Inflation Indicator)")
+fig_cpi = px.line(cpi_df, x="date", y="CPI", title="CPI Over Time")
+st.plotly_chart(fig_cpi)
+st.dataframe(cpi_df.tail(12).style.format({"CPI":"{:.2f}"}))
 
-# ✅ Plot CPI Chart
-fig = px.line(cpi_df, x="date", y="value", title="CPI Over Time")
-st.plotly_chart(fig)
-
-# ✅ Show Table
-st.dataframe(cpi_df.tail(12))
-
-# ✅ Trend Analysis
-latest = cpi_df.iloc[-1]["value"]
-previous = cpi_df.iloc[-2]["value"]
+latest = cpi_df.iloc[-1]["CPI"]
+previous = cpi_df.iloc[-2]["CPI"]
 change = latest - previous
-
 if change > 0:
     st.success(f"📈 Inflation trending UP (+{change:.2f}) → Negative for economy")
 else:
     st.error(f"📉 Inflation trending DOWN ({change:.2f}) → Positive for economy")
+
+# GDP
+gdp_df = get_fred_data("GDP", "GDP (Billions USD)")
+st.subheader("📌 GDP (Billions USD)")
+fig_gdp = px.line(gdp_df, x="date", y="GDP (Billions USD)", title="GDP Over Time")
+st.plotly_chart(fig_gdp)
+st.dataframe(gdp_df.tail(12).style.format({"GDP (Billions USD)":"{:,.2f}"}))
+
