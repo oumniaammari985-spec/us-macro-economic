@@ -26,7 +26,7 @@ data = {
 
 df = pd.DataFrame(data)
 
-# Color rendering
+# Color rendering for Trend column only
 def color_trend(val):
     if val == "Up":
         return "background-color: red; color: white"
@@ -34,8 +34,10 @@ def color_trend(val):
         return "background-color: green; color: white"
     return ""
 
+# -------------------
+# Display only ONE table (the cleaned one)
+# -------------------
 st.subheader("📊 Macro Economic Indicators")
-st.dataframe(df)
 st.dataframe(df.style.applymap(color_trend, subset=["Trend"]))
 
 # Economic Quarter
