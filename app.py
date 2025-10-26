@@ -2,9 +2,10 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
+# إعداد الصفحة
 st.set_page_config(page_title="U.S Macro Economic Dashboard", layout="wide")
 st.title("🇺🇸 U.S Macro Economic Dashboard")
-st.write("Automatic updates — Official economic indicators")
+st.markdown(f"### 🗓️ Last Updated: {datetime.now().strftime('%B %d, %Y %H:%M:%S')}")
 
 # -------------------
 # مؤشرات اقتصادية (قيم مؤقتة)
@@ -39,21 +40,19 @@ data = {
 
 df = pd.DataFrame(data)
 
-# -------------------
 # لون الاتجاه
-# -------------------
 def color_trend(val):
     if val == "Up":
-        return "background-color: red; color: white"
+        return "background-color: red; color: white; font-weight: bold"
     elif val == "Down":
-        return "background-color: green; color: white"
-    return ""
+        return "background-color: green; color: white; font-weight: bold"
+    return "background-color: gray; color: white; font-weight: bold"
 
 # -------------------
 # جدول المؤشرات الاقتصادية
 # -------------------
 st.subheader("📊 Macro Economic Indicators")
-st.dataframe(df.style.applymap(color_trend, subset=["Trend"]))
+st.dataframe(df.style.applymap(color_trend, subset=["Trend"]).set_properties(**{'font-size':'16px','text-align':'center'}))
 
 # -------------------
 # أسواق مالية مرتبطة بالمؤشرات
@@ -66,7 +65,7 @@ markets_data = {
 
 df_markets = pd.DataFrame(markets_data)
 st.subheader("💹 Financial Markets")
-st.dataframe(df_markets.style.applymap(color_trend, subset=["Trend"]))
+st.dataframe(df_markets.style.applymap(color_trend, subset=["Trend"]).set_properties(**{'font-size':'16px','text-align':'center'}))
 
 # -------------------
 # الربع الاقتصادي والسياسة النقدية
@@ -76,8 +75,3 @@ st.success("🔥 Growth + Inflation (Stagflation)")
 
 st.subheader("🏦 Monetary Policy Suggestion")
 st.info("💹 Tightening → Possible Interest Rate Hike")
-
-# -------------------
-# آخر تحديث
-# -------------------
-st.markdown(f"🗓️ **Last Updated:** {datetime.now().strftime('%B %d, %Y %H:%M:%S')}")
