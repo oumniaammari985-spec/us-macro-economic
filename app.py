@@ -40,6 +40,10 @@ st.set_page_config(page_title="🇺🇸 U.S Macro Economic Dashboard", layout="w
 st.title("🇺🇸 U.S Macro Economic Dashboard")
 st.markdown("Automatic updates — Official economic indicators")
 
+# ===== BUTTON FOR MANUAL UPDATE =====
+if st.button("🔄 Update Data Manually"):
+    st.experimental_rerun()
+
 # ===== FETCH DATA =====
 data = []
 for name, code in indicators.items():
