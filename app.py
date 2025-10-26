@@ -35,6 +35,7 @@ def color_trend(val):
     return ""
 
 st.subheader("📊 Macro Economic Indicators")
+st.dataframe(df)
 st.dataframe(df.style.applymap(color_trend, subset=["Trend"]))
 
 # Economic Quarter
