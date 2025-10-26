@@ -1,34 +1,50 @@
 import streamlit as st
 import pandas as pd
-from fredapi import Fred
-import datetime
+import requests
+import plotly.express as px
 
 # ✅ API Key
-fred = Fred(api_key="f034076778e256cc6652d0e249b13f67")
+FRED_API_KEY = "f034076778e256cc6652d0e249b13f67"
 
-st.title("🇺🇸 U.S. Macro Economic Dashboard")
-st.write("📊 البيانات يتم جلبها تلقائياً من FRED (المصدر الرسمي للاقتصاد الأمريكي)")
-
-# ✅ دالة لجلب البيانات
-def get_data(series_id, title):
-    data = fred.get_series(series_id)
-    df = pd.DataFrame(data, columns=[title])
-    df.index.name = "Date"
+# ✅ Function to get CPI data from FRED
+def get_fred_data(series_id, title):
+    url = f"https://api.stlouisfed.org/fred/series/observations"
+    params = {
+        "series_id": series_id,
+        "api_key": FRED_API_KEY,
+        "file_type": "json",
+    }
+    r = requests.get(url, params=params)
+    data = r.json()["observations"]
+    df = pd.DataFrame(data)
+    df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.dropna()
+    
     return df
 
-# ✅ المؤشرات
-gdp = get_data("GDP", "GDP (Billions USD)")
-cpi = get_data("CPIAUCSL", "CPI")
-unemployment = get_data("UNRATE", "Unemployment Rate")
+# ✅ Page Title
+st.title("🇺🇸 U.S Macro Economic Dashboard")
+st.write("Automatic updates — Official economic indicators")
 
-# ✅ عرض البيانات والرسوم
-st.header("📌 GDP")
-st.line_chart(gdp)
+st.subheader("📊 CPI (Inflation Indicator)")
 
-st.header("📌 CPI - Inflation")
-st.line_chart(cpi)
+# ✅ Get CPI (Consumer Price Index)
+cpi_df = get_fred_data("CPIAUCSL", "CPI")
 
-st.header("📌 Unemployment Rate")
-st.line_chart(unemployment)
+# ✅ Plot CPI Chart
+fig = px.line(cpi_df, x="date", y="value", title="CPI Over Time")
+st.plotly_chart(fig)
 
-st.success("✅ تم جلب البيانات بنجاح! 🚀")
+# ✅ Show Table
+st.dataframe(cpi_df.tail(12))
+
+# ✅ Trend Analysis
+latest = cpi_df.iloc[-1]["value"]
+previous = cpi_df.iloc[-2]["value"]
+change = latest - previous
+
+if change > 0:
+    st.success(f"📈 Inflation trending UP (+{change:.2f}) → Negative for economy")
+else:
+    st.error(f"📉 Inflation trending DOWN ({change:.2f}) → Positive for economy")
