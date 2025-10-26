@@ -1,47 +1,112 @@
+# app.py
+
 import streamlit as st
 import pandas as pd
-import requests
-import plotly.express as px
+from datetime import datetime
+from fredapi import Fred
 
-FRED_API_KEY = "f034076778e256cc6652d0e249b13f67"
+# ===== إعداد API =====
+fred = Fred(api_key=st.secrets["FRED_API_KEY"])
 
-def get_fred_data(series_id, title):
-    url = f"https://api.stlouisfed.org/fred/series/observations"
-    params = {
-        "series_id": series_id,
-        "api_key": FRED_API_KEY,
-        "file_type": "json",
-    }
-    r = requests.get(url, params=params)
-    data = r.json()["observations"]
-    df = pd.DataFrame(data)
-    df["value"] = pd.to_numeric(df["value"], errors="coerce")
-    df["date"] = pd.to_datetime(df["date"])
-    df = df.dropna().reset_index(drop=True)
-    return df.rename(columns={"value": title})
-
+st.set_page_config(page_title="U.S Macro Economic Dashboard", layout="wide")
 st.title("🇺🇸 U.S Macro Economic Dashboard")
-st.write("Automatic updates — Official economic indicators")
+st.markdown("Automatic updates — Official economic indicators")
 
-# CPI
-cpi_df = get_fred_data("CPIAUCSL", "CPI")
-st.subheader("📊 CPI (Inflation Indicator)")
-fig_cpi = px.line(cpi_df, x="date", y="CPI", title="CPI Over Time")
-st.plotly_chart(fig_cpi)
-st.dataframe(cpi_df.tail(12).style.format({"CPI":"{:.2f}"}))
+# ===== المؤشرات الاقتصادية =====
+indicators = {
+    "CPI": "CPIAUCSL",
+    "Core CPI (MoM)": "CPILFESL",
+    "PPI": "PPIACO",
+    "Core PPI (MoM)": "PPICTPI",
+    "Unemployment Rate": "UNRATE",
+    "Non-Farm Payrolls": "PAYEMS",
+    "Average Hourly Earnings": "CES0500000003",
+    "Retail Sales (MoM)": "RSXFS",
+    "Core Retail Sales (MoM)": "RSAFS",
+    "ISM Manufacturing PMI": "NAPM",
+    "ISM Services PMI": "SERVPMI",
+    "ISM Manufacturing Prices": "PPIACO",
+    "JOLTS Job Openings": "JTSJOL",
+    "Michigan Consumer Sentiment": "UMCSENT",
+    "PCE": "PCE",
+    "Core PCE (MoM)": "PCEPILFE",
+    "GDP (QoQ)": "GDPC1",
+    "Durable Goods Orders": "DGORDER",
+    "Trade Balance": "NETEXP",
+    "Building Permits": "PERMIT",
+    "New Home Sales": "HSN1F",
+    "Industrial Production": "INDPRO",
+    "Participation Rate": "CIVPART",
+}
 
-latest = cpi_df.iloc[-1]["CPI"]
-previous = cpi_df.iloc[-2]["CPI"]
-change = latest - previous
-if change > 0:
-    st.success(f"📈 Inflation trending UP (+{change:.2f}) → Negative for economy")
-else:
-    st.error(f"📉 Inflation trending DOWN ({change:.2f}) → Positive for economy")
+# ===== دالة لجلب البيانات =====
+def fetch_data(series_id):
+    try:
+        data = fred.get_series(series_id)
+        df = pd.DataFrame(data, columns=["Value"])
+        df.index = pd.to_datetime(df.index)
+        df = df.sort_index()
+        return df
+    except Exception as e:
+        st.error(f"Error fetching {series_id}: {e}")
+        return pd.DataFrame()
 
-# GDP
-gdp_df = get_fred_data("GDP", "GDP (Billions USD)")
-st.subheader("📌 GDP (Billions USD)")
-fig_gdp = px.line(gdp_df, x="date", y="GDP (Billions USD)", title="GDP Over Time")
-st.plotly_chart(fig_gdp)
-st.dataframe(gdp_df.tail(12).style.format({"GDP (Billions USD)":"{:,.2f}"}))
+# ===== جدول المؤشرات =====
+st.header("📊 Economic Indicators")
 
+indicator_data = {}
+for name, series in indicators.items():
+    df = fetch_data(series)
+    if not df.empty:
+        # آخر قيمتين لمقارنة الاتجاه
+        last_val = df["Value"].iloc[-1]
+        prev_val = df["Value"].iloc[-2] if len(df) > 1 else last_val
+        trend = "↗️ Up" if last_val > prev_val else "↘️ Down" if last_val < prev_val else "→ Stable"
+        indicator_data[name] = {
+            "Date": df.index[-1].strftime("%Y-%m-%d"),
+            "Value": last_val,
+            "Trend": trend
+        }
+
+indicator_df = pd.DataFrame(indicator_data).T
+st.dataframe(indicator_df.style.format({"Value": "{:.2f}"}))
+
+# ===== تحديد الربع الاقتصادي =====
+st.header("📌 Current Economic Quarter Analysis")
+# بسيط: استخدام GDP + Unemployment + CPI لتقدير الربع
+gdp_trend = indicator_df.loc["GDP (QoQ)","Trend"] if "GDP (QoQ)" in indicator_df.index else "Unknown"
+cpi_trend = indicator_df.loc["CPI","Trend"] if "CPI" in indicator_df.index else "Unknown"
+unemp_trend = indicator_df.loc["Unemployment Rate","Trend"] if "Unemployment Rate" in indicator_df.index else "Unknown"
+
+quarter_analysis = "Unknown"
+if gdp_trend=="↗️ Up" and cpi_trend=="↘️ Down":
+    quarter_analysis = "Growth"
+elif gdp_trend=="↗️ Up" and cpi_trend=="↗️ Up":
+    quarter_analysis = "Inflationary Growth"
+elif gdp_trend=="↘️ Down" and cpi_trend=="↘️ Down":
+    quarter_analysis = "Contraction"
+elif gdp_trend=="↘️ Down" and cpi_trend=="↗️ Up":
+    quarter_analysis = "Stagflation"
+
+st.info(f"Current Economic Quarter: **{quarter_analysis}**")
+
+# ===== السياسة النقدية =====
+st.header("💰 Monetary Policy Suggestion")
+policy = "Unknown"
+if quarter_analysis in ["Growth", "Inflationary Growth"]:
+    policy = "Consider tightening / rate hikes likely"
+elif quarter_analysis in ["Contraction"]:
+    policy = "Consider easing / stimulus likely"
+elif quarter_analysis in ["Stagflation"]:
+    policy = "Mixed signals, monitor CPI and Unemployment"
+
+st.success(f"Suggested Monetary Policy: **{policy}**")
+
+# ===== تحديث البيانات =====
+if st.button("🔄 Refresh Data"):
+    st.experimental_rerun()
+
+# ===== Footer =====
+st.markdown("---")
+st.markdown("Data source: [FRED](https://fred.stlouisfed.org/)")
+st.markdown(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
